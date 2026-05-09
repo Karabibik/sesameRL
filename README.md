@@ -24,6 +24,22 @@ tensorboard --logdir logs                                   # monitor training
 
 ---
 
+## Web demo
+
+In-browser playback via [mjswan](https://github.com/ttktjmt/mjswan)
+(MuJoCo-WASM + onnxruntime-web). See [web/README.md](web/README.md).
+
+```bash
+python web/sync_policy.py     # latest logs/<run>/*.onnx -> web/assets/policy.onnx
+python web/main.py            # builds web/dist/ and opens http://localhost:8080
+```
+
+`master` pushes that touch `web/`, `config.py`, `env_cfg.py`,
+`sesame_robot.py`, `play.py`, or `urdf_model/` rebuild and publish to
+GitHub Pages via [.github/workflows/deploy-demo.yml](.github/workflows/deploy-demo.yml).
+
+---
+
 ## Layout
 
 ```
@@ -35,6 +51,7 @@ sesameRL/
 ├── sesame_robot.py    imports robot from URDF file
 ├── env_cfg.py         composes mjlab environment from config.py
 ├── urdf_model/        Sesame.urdf + STL meshes
+├── web/               browser demo (mjswan)
 └── logs/              rsl_rl run dirs (TensorBoard + checkpoints + params snapshots)
 ```
 
