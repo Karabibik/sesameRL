@@ -28,7 +28,7 @@ from mjlab.sensor import ContactMatch, ContactSensorCfg
 from mjlab.tasks.velocity import mdp
 from mjlab.tasks.velocity.mdp import UniformVelocityCommandCfg
 from mjlab.tasks.velocity.velocity_env_cfg import make_velocity_env_cfg
-from mjlab.terrains import HfRandomUniformTerrainCfg, TerrainGeneratorCfg
+from mjlab.terrains import HfPerlinNoiseTerrainCfg, TerrainGeneratorCfg
 
 import config as C
 from sesame_robot import (
@@ -162,12 +162,13 @@ class command_range_curriculum:
 # Rough-terrain generator
 # ---------------------------------------------------------------------------
 def _build_rough_terrain_generator() -> TerrainGeneratorCfg:
-    """Heightfield generator for blind rough-terrain training.
+    """Perlin-noise heightfield generator for blind rough-terrain training.
 
-    `num_rows` × `num_cols` patches; difficulty scales linearly along rows
-    (level 0 = flat) via mjlab's `curriculum=True` mode. mjlab's
-    `terrain_levels_vel` curriculum promotes/demotes each env between rows
-    based on tracking score.
+    `HfPerlinNoiseTerrainCfg` honors mjlab's difficulty parameter: row 0
+    (difficulty=0) renders flat, row `num_rows-1` (difficulty=1) renders the
+    full `height_range[1]` amplitude. `terrain_levels_vel` promotes each env
+    upward as tracking improves and demotes envs that fall behind, capped at
+    `num_rows-1`.
     """
     t = C.TERRAIN
     return TerrainGeneratorCfg(
@@ -177,14 +178,10 @@ def _build_rough_terrain_generator() -> TerrainGeneratorCfg:
         num_cols=t["num_cols"],
         curriculum=True,
         sub_terrains={
-            "uniform_noise": HfRandomUniformTerrainCfg(
+            "perlin_noise": HfPerlinNoiseTerrainCfg(
                 proportion=1.0,
                 size=t["size"],
-                noise_range=t["height_range"],
-                noise_step=t["height_range"][1] / 4 if t["height_range"][1] > 0 else 0.005,
-                horizontal_scale=t["step_range"][0],
-                vertical_scale=0.005,
-                border_width=0.25,
+                height_range=t["height_range"],
             ),
         },
     )
@@ -193,20 +190,38 @@ def _build_rough_terrain_generator() -> TerrainGeneratorCfg:
 # ---------------------------------------------------------------------------
 # Env config
 # ---------------------------------------------------------------------------
-def sesame_flat_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
-    """Flat-terrain velocity-tracking env for Sesame. Everything sourced from config.py."""
+def sesame_flat_env_cfg(
+    play: bool = False, rough: bool | None = None
+) -> ManagerBasedRlEnvCfg:
+    """Velocity-tracking env for Sesame. Everything sourced from config.py.
+
+    Args:
+      play: 1-env play/eval mode (disables corruption, push events, etc).
+      rough: terrain override. ``None`` (default) reads from
+        ``config.TERRAIN["rough_enabled"]``; pass ``True``/``False`` explicitly
+        to build a specific terrain regardless of the live config flag. Used
+        by ``register_all_tasks`` to register both variants side-by-side.
+    """
     cfg = make_velocity_env_cfg()
+    use_rough = C.TERRAIN["rough_enabled"] if rough is None else rough
 
     # --- Scene / terrain -----------------------------------------------------
     assert cfg.scene.terrain is not None
-    if C.TERRAIN["rough_enabled"] and not play:
+    if use_rough:
         cfg.scene.terrain.terrain_type = "generator"
         cfg.scene.terrain.terrain_generator = _build_rough_terrain_generator()
-        cfg.scene.terrain.max_init_terrain_level = 0
+        # Training: cap at row 0 (flat); `terrain_levels_vel` promotes upward.
+        # Play / mjswan: cap at the hardest row. mjlab spawns uniformly in
+        # [0, max_init_terrain_level], so this widens the spawn range to
+        # *include* the roughest band -- which is what you actually want to
+        # see when visualizing. Lower this if testing on a specific level.
+        cfg.scene.terrain.max_init_terrain_level = (
+            C.TERRAIN["num_rows"] - 1 if play else 0
+        )
     else:
-        # Flat. Plane mode also disables the rough-terrain curriculum below
-        # since `terrain_levels_vel` requires `terrain_levels` state on the
-        # terrain entity, which only generator-mode populates.
+        # Flat. Plane mode also implicitly skips the terrain_levels curriculum
+        # below since `terrain_levels_vel` requires `terrain_levels` state on
+        # the terrain entity, which only generator-mode populates.
         cfg.scene.terrain.terrain_type = "plane"
         cfg.scene.terrain.terrain_generator = None
     cfg.scene.entities = {"robot": get_robot_cfg()}
@@ -353,7 +368,7 @@ def sesame_flat_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
                 "command_name": "twist",
             },
         )
-    if C.TERRAIN["rough_enabled"] and not play:
+    if use_rough and not play:
         # Per-env terrain-level promotion: envs that successfully track their
         # commanded velocity over an episode are bumped to a harder difficulty
         # band; envs that fall short get bumped down. Caps at num_rows-1.
@@ -411,3 +426,35 @@ def build_rl_cfg() -> RslRlOnPolicyRunnerCfg:
         max_iterations=C.MAX_ITERATIONS,
         logger=p["logger"],
     )
+
+
+_TASKS_REGISTERED = False
+
+def register_all_tasks() -> None:
+    """Register both flat and rough Sesame velocity tasks in the mjlab registry.
+
+    Idempotent: safe to call multiple times. After this returns, both
+    ``C.TASK_FLAT`` and ``C.TASK_ROUGH`` are resolvable via
+    ``mjlab.tasks.registry`` and can be loaded by `add_mjlab_scene`,
+    `run_train`, `run_play`, etc.
+
+    Sharing one registration call across train.py / play.py / web/main.py
+    keeps the per-task env configuration in one place.
+    """
+    global _TASKS_REGISTERED
+    if _TASKS_REGISTERED:
+        return
+
+    from mjlab.tasks.registry import register_mjlab_task
+    from mjlab.tasks.velocity.rl import VelocityOnPolicyRunner
+
+    rl_cfg = build_rl_cfg()
+    for task_id, rough in ((C.TASK_FLAT, False), (C.TASK_ROUGH, True)):
+        register_mjlab_task(
+            task_id=task_id,
+            env_cfg=sesame_flat_env_cfg(rough=rough),
+            play_env_cfg=sesame_flat_env_cfg(play=True, rough=rough),
+            rl_cfg=rl_cfg,
+            runner_cls=VelocityOnPolicyRunner,
+        )
+    _TASKS_REGISTERED = True

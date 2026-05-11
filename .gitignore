@@ -1,5 +1,4 @@
-*.pyc
 # logs
 __pycache__/
 web/dist/
-MUJOCO_LOG.TXT
+*BERKAY*

@@ -4,6 +4,7 @@ Usage:
   python play.py                                 # auto-loads latest checkpoint
   python play.py --checkpoint-file path/to.pt    # pin a specific checkpoint
   python play.py --viewer native                 # native mujoco viewer
+  python play.py --terrain rough                 # Perlin terrain instead of plane
 """
 
 from __future__ import annotations
@@ -12,21 +13,13 @@ import argparse
 from pathlib import Path
 
 from mjlab.scripts.play import PlayConfig, run_play
-from mjlab.tasks.registry import register_mjlab_task
-from mjlab.tasks.velocity.rl import VelocityOnPolicyRunner
 from mjlab.utils.os import get_checkpoint_path
 
 import config as C
-from env_cfg import build_rl_cfg, sesame_flat_env_cfg
+from env_cfg import register_all_tasks
 
-
-register_mjlab_task(
-    task_id=C.TASK_ID,
-    env_cfg=sesame_flat_env_cfg(),
-    play_env_cfg=sesame_flat_env_cfg(play=True),
-    rl_cfg=build_rl_cfg(),
-    runner_cls=VelocityOnPolicyRunner,
-)
+# Registers both Sesame-Velocity-Flat and Sesame-Velocity-Rough.
+register_all_tasks()
 
 
 def _latest_checkpoint() -> str | None:
@@ -51,6 +44,9 @@ def _parse_args() -> argparse.Namespace:
                    help="Path to a model_*.pt. Defaults to the newest under logs/.")
     p.add_argument("--viewer", choices=("viser", "native"), default="viser",
                    help="viser (web) or native mujoco viewer.")
+    p.add_argument("--terrain", choices=("flat", "rough"), default=None,
+                   help="Which Sesame variant to play. Defaults to whatever "
+                        "C.TERRAIN['rough_enabled'] resolved C.TASK_ID to.")
     return p.parse_args()
 
 
@@ -61,13 +57,20 @@ def main() -> None:
     if checkpoint and not args.checkpoint_file:
         print(f"[play] auto-loading latest checkpoint: {checkpoint}")
 
+    task_id = {
+        "flat":  C.TASK_FLAT,
+        "rough": C.TASK_ROUGH,
+        None:    C.TASK_ID,
+    }[args.terrain]
+    print(f"[play] task_id: {task_id}")
+
     cfg = PlayConfig(
         agent="trained" if checkpoint else "zero",
         num_envs=1,
         viewer=args.viewer,
         checkpoint_file=checkpoint,
     )
-    run_play(C.TASK_ID, cfg)
+    run_play(task_id, cfg)
 
 
 if __name__ == "__main__":

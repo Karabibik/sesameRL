@@ -43,11 +43,12 @@ PAGE_CANONICAL_URL = "https://karabibik.github.io/sesameRL/"
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-# Side effect: registers `Sesame-Velocity-Flat` in the mjlab task registry.
-import play  # noqa: E402,F401
-
 import config as C  # noqa: E402
-from env_cfg import sesame_flat_env_cfg  # noqa: E402
+from env_cfg import register_all_tasks, sesame_flat_env_cfg  # noqa: E402
+
+# Registers both Sesame-Velocity-Flat and Sesame-Velocity-Rough so the build
+# below can add both as mjswan scenes.
+register_all_tasks()
 
 ASSETS = ROOT / "web" / "assets"
 DIST = ROOT / "web" / "dist"
@@ -297,10 +298,6 @@ def main() -> None:
         ),
     }
 
-    builder = mjswan.Builder(base_path=base_path)
-    project = builder.add_project(name="sesameRL")
-    scene = project.add_mjlab_scene(C.TASK_ID, play=True)
-
     # mjswan's PolicyRunner picks which observation group to feed the ONNX
     # session by matching keys against `OnnxModule.inKeys`, which is sourced
     # from the policy-config JSON's `onnx.meta.in_keys` and **defaults to
@@ -311,16 +308,23 @@ def main() -> None:
     # inference; drop it.) Confirmed against examples/mjlab/unitree_rl/main.py.
     observations = {"policy": play_env_cfg.observations["actor"]}
 
-    scene.add_policy(
-        name="velocity",
-        policy=policy,
-        observations=observations,
-        commands=commands,
-        actions=play_env_cfg.actions,
-        policy_joint_names=policy_joint_names,
-        default_joint_pos=default_joint_pos,
-        default=True,
-    )
+    # Add both flat and rough scenes so the browser shows a scene picker.
+    # The flat-policy ONNX is reused on both; obs/action/command layouts are
+    # identical across terrains -- only the scene geometry differs.
+    builder = mjswan.Builder(base_path=base_path)
+    project = builder.add_project(name="sesameRL")
+    for task_id, is_default in ((C.TASK_FLAT, True), (C.TASK_ROUGH, False)):
+        scene = project.add_mjlab_scene(task_id, play=True)
+        scene.add_policy(
+            name="velocity",
+            policy=policy,
+            observations=observations,
+            commands=commands,
+            actions=play_env_cfg.actions,
+            policy_joint_names=policy_joint_names,
+            default_joint_pos=default_joint_pos,
+            default=is_default,
+        )
 
     # mjswan's _save_web rmtrees output_dir, then copytrees the template,
     # then moves dist/* up. On Windows the inner rmtree of `node_modules`
