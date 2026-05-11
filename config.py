@@ -101,10 +101,9 @@ OBSERVATIONS = {
 # ---------------------------------------------------------------------------
 # Rewards -- weights are passed straight to mjlab's RewardManager.
 # ---------------------------------------------------------------------------
-# ![TODO] Play with rewards
 REWARDS = {
     "track_linear_velocity":  {"enabled": True, "weight":  2.0},
-    "track_angular_velocity": {"enabled": True, "weight":  2.0},
+    "track_angular_velocity": {"enabled": True, "weight":  1.5}, # Making same with linear causes motion leak
     "upright":                {"enabled": True, "weight":  1.0},
     "action_rate_l2":         {"enabled": True, "weight": -0.1},
     "action_acc_l2":          {"enabled": True, "weight": -0.005},
@@ -138,7 +137,6 @@ EVENTS = {
 # Commands -- UniformVelocityCommand over (lin_vel_x, lin_vel_y, ang_vel_z).
 # iteration*24, where iteration is the number of steps seen in tensorboard
 # 24 = num_steps_per_env in PPO config
-# ![TODO] Currently trying out some curriculums, edit as you wish
 # ---------------------------------------------------------------------------
 CURRICULUM_ENABLED = True
 COMMAND_CURRICULUM = [
@@ -149,7 +147,7 @@ COMMAND_CURRICULUM = [
     # Stage 2: add lateral strafe.
     {"step":  1000*24, "x_com": (-0.5, 0.5), "y_com": (-0.3, 0.3), "z_com": ( 0.0, 0.0)},
     # Stage 3: full symmetric 3-axis.
-    {"step":  1500*24, "x_com": (-0.5, 0.5), "y_com": (-0.3, 0.3), "z_com": (-1.0, 1.0)},
+    {"step":  1500*24, "x_com": (-0.75, 0.75), "y_com": (-0.75, 0.75), "z_com": (-2.0, 2.0)},
 
 ]
 REL_STANDING_ENVS = 0.1
@@ -185,7 +183,6 @@ PPO = {
         "max_grad_norm": 1.0,
     },
 
-    # ![TODO] Need to keep the NN small to fit into ESP32
     "actor": {
         "hidden_dims": (256, 128),
         "activation": "elu",

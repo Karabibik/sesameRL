@@ -6,7 +6,7 @@ Usage:
   python train.py --num-envs 2048                                  # override NUM_ENVS
   python train.py --resume                                         # latest run under logs/
   python train.py --checkpoint logs/<run>/model_<N>.pt             # pin a specific checkpoint
-  python train.py --checkpoint <path> --continue-iteration         # doesn't restart TB step axis at 0
+  python train.py --checkpoint <path> --continue-iteration         # keep the prior iteration counter
 """
 
 from __future__ import annotations
@@ -44,17 +44,13 @@ def _parse_args() -> argparse.Namespace:
 
 
 def _apply_reset_iteration_patch() -> None:
-    """Make ``OnPolicyRunner.load`` ignore the saved iteration counter.
-
-    mjlab calls ``runner.load(str(resume_path))`` with no ``load_cfg``, so by
-    default ``current_learning_iteration`` is restored from the checkpoint and
-    TensorBoard's step axis continues from the end of the prior run. We patch
-    the bound method to zero the counter after the underlying load completes,
-    preserving weights + optimizer state but giving us a fresh step axis.
+    """Make the runner ignore the saved iteration counter on load.
+    Only resets the iteration counter for tensorboard.
+    Step counter for curriculum remains the same.
     """
-    from rsl_rl.runners.on_policy_runner import OnPolicyRunner
+    from mjlab.rl.runner import MjlabOnPolicyRunner
 
-    _orig_load = OnPolicyRunner.load
+    _orig_load = MjlabOnPolicyRunner.load
 
     def _load_no_iter(self, path, *args, **kwargs):
         result = _orig_load(self, path, *args, **kwargs)
@@ -62,7 +58,7 @@ def _apply_reset_iteration_patch() -> None:
         print("[train] zeroed current_learning_iteration after load")
         return result
 
-    OnPolicyRunner.load = _load_no_iter
+    MjlabOnPolicyRunner.load = _load_no_iter
 
 
 def main() -> None:
@@ -85,11 +81,10 @@ def main() -> None:
     else:
         cfg.agent.resume = args.resume
 
-    if not args.continue_iteration:
-        if not cfg.agent.resume:
-            print("[train] --continue-iteration ignored: no checkpoint to resume from.")
-        else:
-            _apply_reset_iteration_patch()
+    if cfg.agent.resume and not args.continue_iteration:
+        _apply_reset_iteration_patch()
+    elif args.continue_iteration and not cfg.agent.resume:
+        print("[train] --continue-iteration ignored: no checkpoint to resume from.")
 
     log_dir = Path("logs") / datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
 

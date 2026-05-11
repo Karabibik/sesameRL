@@ -44,9 +44,8 @@ def _parse_args() -> argparse.Namespace:
                    help="Path to a model_*.pt. Defaults to the newest under logs/.")
     p.add_argument("--viewer", choices=("viser", "native"), default="viser",
                    help="viser (web) or native mujoco viewer.")
-    p.add_argument("--terrain", choices=("flat", "rough"), default=None,
-                   help="Which Sesame variant to play. Defaults to whatever "
-                        "C.TERRAIN['rough_enabled'] resolved C.TASK_ID to.")
+    p.add_argument("--terrain", choices=("flat", "rough"), default="flat",
+                   help="Which Sesame variant to play. Defaults to flat.")
     return p.parse_args()
 
 

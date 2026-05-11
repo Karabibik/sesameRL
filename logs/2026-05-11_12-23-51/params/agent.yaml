@@ -1,6 +1,6 @@
 seed: 1
 num_steps_per_env: 24
-max_iterations: 30000
+max_iterations: 20000
 obs_groups:
   actor: !!python/tuple
   - actor
@@ -13,8 +13,8 @@ logger: tensorboard
 wandb_project: mjlab
 wandb_tags: !!python/tuple []
 resume: true
-load_run: 2026-04-19_14-28-45
-load_checkpoint: model_9999.pt
+load_run: 2026-05-10_10-30-43
+load_checkpoint: model_36000.pt
 clip_actions: null
 upload_model: true
 class_name: OnPolicyRunner

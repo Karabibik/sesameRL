@@ -18,14 +18,12 @@ Every observation, reward, event, curriculum stage, and PPO hyperparameter lives
 python validate.py                                          # sinusoidal joint drive, no policy
 python train.py                                             # full PPO run
 python play.py                                              # auto-loads latest checkpoint
-python play.py --checkpoint-file logs/<run>/model_<n>.pt    # play a specific checkpoint
 tensorboard --logdir logs                                   # monitor training
 ```
 
 ---
 
 ## Web demo
-
 Check the [interactive policy demo](https://karabibik.github.io/sesameRL/)!
 
 ---
@@ -71,7 +69,7 @@ Link / joint naming inherited from the Sesame project:
     - [ ] Current observations are not realizable with existing hardware
     - [ ] Currently uses curriculum, can upgrade to hierarchical learning
     - [x] Play with rewards for better locomotion
-- [ ] Terrain is flat, can upgrade to a rough terrain
+- [x] Terrain is flat, can upgrade to a rough terrain
 - [ ] Sim-to-real preparation (needs extended hardware)
 - [x] Add a web-viewer using [mjswan](https://github.com/ttktjmt/mjswan)
 - [x] Resume training from an existing checkpoint
