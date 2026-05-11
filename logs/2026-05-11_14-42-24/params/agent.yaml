@@ -13,8 +13,8 @@ logger: tensorboard
 wandb_project: mjlab
 wandb_tags: !!python/tuple []
 resume: true
-load_run: 2026-05-10_10-30-43
-load_checkpoint: model_36000.pt
+load_run: 2026-05-11_12-23-51
+load_checkpoint: model_2000.pt
 clip_actions: null
 upload_model: true
 class_name: OnPolicyRunner

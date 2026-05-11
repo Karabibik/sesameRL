@@ -107,9 +107,9 @@ REWARDS = {
     "upright":                {"enabled": True, "weight":  1.0},
     "action_rate_l2":         {"enabled": True, "weight": -0.1},
     "action_acc_l2":          {"enabled": True, "weight": -0.005},
-    "foot_slip":              {"enabled": True, "weight": -0.05},
+    "foot_slip":              {"enabled": True, "weight": -0.1},
     "dof_pos_limits":         {"enabled": True, "weight": -1.0},
-    "soft_landing":           {"enabled": True, "weight": -1e-5},
+    "soft_landing":           {"enabled": True, "weight": -1e-4},
     "air_time":               {"enabled": True, "weight":  0.5, "cmd_threshold": 0.05},
 
     # exp(-mean((q - q_default)^2 / std^2));
@@ -145,10 +145,9 @@ COMMAND_CURRICULUM = [
     # Stage 1: widen forward/backward.
     {"step":   500*24, "x_com": (-0.5, 0.5), "y_com": ( 0.0, 0.0), "z_com": ( 0.0, 0.0)},
     # Stage 2: add lateral strafe.
-    {"step":  1000*24, "x_com": (-0.5, 0.5), "y_com": (-0.3, 0.3), "z_com": ( 0.0, 0.0)},
+    {"step":  1000*24, "x_com": (-0.5, 0.5), "y_com": (-0.3, 0.3), "z_com": (-0.2, 0.2)},
     # Stage 3: full symmetric 3-axis.
-    {"step":  1500*24, "x_com": (-0.75, 0.75), "y_com": (-0.75, 0.75), "z_com": (-2.0, 2.0)},
-
+    {"step":  1500*24, "x_com": (-0.5, 0.5), "y_com": (-0.5, 0.5), "z_com": (-1.0, 1.0)},
 ]
 REL_STANDING_ENVS = 0.1
 

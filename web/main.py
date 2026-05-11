@@ -313,18 +313,20 @@ def main() -> None:
     # identical across terrains -- only the scene geometry differs.
     builder = mjswan.Builder(base_path=base_path)
     project = builder.add_project(name="sesameRL")
-    for task_id, is_default in ((C.TASK_FLAT, True), (C.TASK_ROUGH, False)):
-        scene = project.add_mjlab_scene(task_id, play=True)
-        scene.add_policy(
-            name="velocity",
-            policy=policy,
-            observations=observations,
-            commands=commands,
-            actions=play_env_cfg.actions,
-            policy_joint_names=policy_joint_names,
-            default_joint_pos=default_joint_pos,
-            default=is_default,
-        )
+    # for task_id, is_default in ((C.TASK_FLAT, True), (C.TASK_ROUGH, False)):
+    task_id = C.TASK_FLAT
+    is_default = True
+    scene = project.add_mjlab_scene(task_id, play=True)
+    scene.add_policy(
+        name="velocity",
+        policy=policy,
+        observations=observations,
+        commands=commands,
+        actions=play_env_cfg.actions,
+        policy_joint_names=policy_joint_names,
+        default_joint_pos=default_joint_pos,
+        default=is_default,
+    )
 
     # mjswan's _save_web rmtrees output_dir, then copytrees the template,
     # then moves dist/* up. On Windows the inner rmtree of `node_modules`
