@@ -5,6 +5,8 @@ Usage:
   python train.py --max-iterations 20          # smoke test
   python train.py --run-name my_experiment     # tag the log subdir
   python train.py --num-envs 2048              # override NUM_ENVS from config
+  python train.py --resume                     # continue from latest run under logs/
+  python train.py --resume --load-run 2026-05-09_14-30-00
 """
 
 from __future__ import annotations
@@ -42,6 +44,13 @@ def _parse_args() -> argparse.Namespace:
                    help="Parallel environments (default from config.NUM_ENVS).")
     p.add_argument("--seed", type=int, default=C.SEED,
                    help="Random seed for env + agent.")
+    p.add_argument("--resume", action="store_true",
+                   help="Continue PPO from a prior checkpoint under logs/.")
+    p.add_argument("--load-run", type=str, default="",
+                   help="Run dir under logs/<EXPERIMENT_NAME>/ to resume from "
+                        "(default: latest).")
+    p.add_argument("--load-checkpoint", type=str, default="",
+                   help="Checkpoint filename to load (default: latest model_*.pt).")
     return p.parse_args()
 
 
@@ -54,6 +63,10 @@ def main() -> None:
     cfg.agent.seed = args.seed
     cfg.env.scene.num_envs = args.num_envs
     cfg.env.seed = args.seed
+
+    cfg.agent.resume = args.resume
+    cfg.agent.load_run = args.load_run
+    cfg.agent.load_checkpoint = args.load_checkpoint
 
     log_dir_name = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
     if args.run_name:

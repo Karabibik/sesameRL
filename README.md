@@ -26,17 +26,7 @@ tensorboard --logdir logs                                   # monitor training
 
 ## Web demo
 
-In-browser playback via [mjswan](https://github.com/ttktjmt/mjswan)
-(MuJoCo-WASM + onnxruntime-web). See [web/README.md](web/README.md).
-
-```bash
-python web/sync_policy.py     # latest logs/<run>/*.onnx -> web/assets/policy.onnx
-python web/main.py            # builds web/dist/ and opens http://localhost:8080
-```
-
-`master` pushes that touch `web/`, `config.py`, `env_cfg.py`,
-`sesame_robot.py`, `play.py`, or `urdf_model/` rebuild and publish to
-GitHub Pages via [.github/workflows/deploy-demo.yml](.github/workflows/deploy-demo.yml).
+Check the [interactive policy demo](https://karabibik.github.io/sesameRL/)!
 
 ---
 
@@ -51,8 +41,8 @@ sesameRL/
 ├── sesame_robot.py    imports robot from URDF file
 ├── env_cfg.py         composes mjlab environment from config.py
 ├── urdf_model/        Sesame.urdf + STL meshes
-├── web/               browser demo (mjswan)
-└── logs/              rsl_rl run dirs (TensorBoard + checkpoints + params snapshots)
+├── web/               browser demo
+└── logs/              TensorBoard + checkpoints + params
 ```
 
 ---
@@ -77,9 +67,11 @@ Link / joint naming inherited from the Sesame project:
 	- [ ] Starting orientation is garbage visually. Has no adverse effect, but would be nice if it was standing straight.
 - [ ] Check the [TODO] and [OPT] tags in [config.py](config.py)
     - [ ] Tune kp-kd values
-    - [ ] Make the NN small enough to fit ESP32
+    - [x] Make the NN small enough to fit ESP32
     - [ ] Current observations are not realizable with existing hardware
     - [ ] Currently uses curriculum, can upgrade to hierarchical learning
-    - [ ] Play with rewards for better locomotion
+    - [x] Play with rewards for better locomotion
 - [ ] Terrain is flat, can upgrade to a rough terrain
 - [ ] Sim-to-real preparation (needs extended hardware)
+- [x] Add a web-viewer using [mjswan](https://github.com/ttktjmt/mjswan)
+- [x] Resume training from an existing checkpoint

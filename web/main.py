@@ -28,6 +28,18 @@ import mjswan
 # script re-applies it.
 DRAG_FORCE_SCALE = 5.0
 
+# Link-preview metadata (Open Graph / Twitter Card). Edit these to change
+# the title/description/thumbnail that appears in Discord, Slack, Twitter,
+# iMessage, etc. The OG image is optional -- drop a 1200x630 PNG/JPG into
+# `web/assets/og.png` and it'll be copied into the build automatically.
+PAGE_TITLE = "sesameRL — Sesame quadruped browser demo"
+PAGE_DESCRIPTION = (
+    "Real-time in-browser playback of a trained PPO policy controlling the "
+    "4-legged Sesame quadruped, via mjswan + MuJoCo-WASM."
+)
+PAGE_OG_IMAGE_NAME = "og.png"  # file name inside web/assets/ (optional)
+PAGE_CANONICAL_URL = "https://karabibik.github.io/sesameRL/"
+
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
@@ -130,6 +142,96 @@ def _patch_drag_force_scale(scale: float) -> None:
         return  # already patched
     rt.write_text(new_text, encoding="utf-8")
     print(f"[main] patched mjswan dragForceScale -> {scale}")
+
+
+def _inject_link_preview_meta(
+    dist: Path,
+    base_path: str,
+    title: str,
+    description: str,
+    canonical_url: str,
+    og_image_src: Path | None,
+) -> None:
+    """Customise the built index.html with Open Graph / Twitter meta tags.
+
+    mjswan emits a generic `<title>mjswan</title>` and a stock description.
+    We rewrite both and inject OG/Twitter tags so link unfurls (Discord,
+    Slack, iMessage, Twitter, etc.) show this project's branding instead.
+
+    If `og_image_src` is provided, copies it into the build root so it's
+    served alongside the page; the OG tag references it via `base_path`.
+    """
+    index = dist / "index.html"
+    if not index.exists():
+        print(f"[main] WARN: {index} missing; skipping meta-tag injection.")
+        return
+
+    og_image_url: str | None = None
+    if og_image_src is not None and og_image_src.exists():
+        dest = dist / og_image_src.name
+        shutil.copy2(og_image_src, dest)
+        og_image_url = canonical_url.rstrip("/") + "/" + og_image_src.name
+    elif og_image_src is not None:
+        print(f"[main] note: {og_image_src} not found; OG tags will omit image.")
+
+    html = index.read_text(encoding="utf-8")
+
+    # 1. Title.
+    html = re.sub(
+        r"<title>[^<]*</title>",
+        f"<title>{_html_escape(title)}</title>",
+        html,
+        count=1,
+    )
+
+    # 2. Description (replace existing meta tag content; mjswan ships one).
+    html = re.sub(
+        r'<meta\s+name="description"\s+content="[^"]*"\s*/?>',
+        f'<meta name="description" content="{_html_escape(description)}" />',
+        html,
+        count=1,
+    )
+
+    # 3. OG / Twitter tags injected just before </head>. Idempotent: drop any
+    #    previously-injected block so re-runs don't duplicate.
+    html = re.sub(
+        r"\n\s*<!-- BEGIN sesameRL link-preview -->.*?<!-- END sesameRL link-preview -->",
+        "",
+        html,
+        flags=re.DOTALL,
+    )
+    tags = [
+        '<!-- BEGIN sesameRL link-preview -->',
+        f'<meta property="og:type" content="website" />',
+        f'<meta property="og:title" content="{_html_escape(title)}" />',
+        f'<meta property="og:description" content="{_html_escape(description)}" />',
+        f'<meta property="og:url" content="{_html_escape(canonical_url)}" />',
+        f'<meta property="og:site_name" content="sesameRL" />',
+        f'<meta name="twitter:card" content="{"summary_large_image" if og_image_url else "summary"}" />',
+        f'<meta name="twitter:title" content="{_html_escape(title)}" />',
+        f'<meta name="twitter:description" content="{_html_escape(description)}" />',
+    ]
+    if og_image_url:
+        tags.insert(5, f'<meta property="og:image" content="{_html_escape(og_image_url)}" />')
+        tags.insert(6, f'<meta property="og:image:width" content="1200" />')
+        tags.insert(7, f'<meta property="og:image:height" content="630" />')
+        tags.append(f'<meta name="twitter:image" content="{_html_escape(og_image_url)}" />')
+    tags.append('<!-- END sesameRL link-preview -->')
+    block = "\n    " + "\n    ".join(tags) + "\n  "
+    html = html.replace("</head>", f"{block}</head>", 1)
+
+    index.write_text(html, encoding="utf-8")
+    print(f"[main] injected link-preview meta into {index}"
+          + (f" (og:image -> {og_image_url})" if og_image_url else ""))
+
+
+def _html_escape(s: str) -> str:
+    return (
+        s.replace("&", "&amp;")
+         .replace("<", "&lt;")
+         .replace(">", "&gt;")
+         .replace('"', "&quot;")
+    )
 
 
 def _parse_args() -> argparse.Namespace:
@@ -254,6 +356,16 @@ def main() -> None:
             _robust_rmtree(p)
         elif p.is_file():
             p.unlink()
+
+    og_image_src = ASSETS / PAGE_OG_IMAGE_NAME
+    _inject_link_preview_meta(
+        dist=DIST,
+        base_path=base_path,
+        title=PAGE_TITLE,
+        description=PAGE_DESCRIPTION,
+        canonical_url=PAGE_CANONICAL_URL,
+        og_image_src=og_image_src if og_image_src.exists() else None,
+    )
 
     print(f"[main] built {DIST}")
 

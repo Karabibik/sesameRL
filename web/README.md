@@ -43,6 +43,36 @@ python web/main.py
   All control metadata (`joint_names`, `default_joint_pos`, `action_scale`,
   `joint_stiffness`, `joint_damping`) is embedded in `metadata_props`.
 
+## Link previews (OG / Twitter Card)
+
+[main.py](main.py) injects custom Open Graph + Twitter Card meta tags
+into the built `index.html` so link unfurls (Discord, Slack, iMessage,
+Twitter, etc.) show this project's title, description, and a thumbnail
+instead of mjswan's defaults.
+
+Edit the `PAGE_TITLE`, `PAGE_DESCRIPTION`, and `PAGE_CANONICAL_URL`
+constants near the top of [main.py](main.py) to change the copy.
+
+To add a thumbnail:
+
+1. Take a screenshot (1200×630 ideal — Twitter/Discord crop closer to
+   1200×600).
+2. Save it as [assets/og.png](assets/og.png).
+3. Re-run `python web/main.py`. The build copies the image into
+   `web/dist/og.png` and references it in `og:image` /
+   `twitter:image`.
+
+If the file is absent, OG tags omit the image and Twitter falls back
+to `summary` (small) cards.
+
+After pushing, validate with:
+- https://www.opengraph.xyz/url/https%3A%2F%2Fkarabibik.github.io%2FsesameRL%2F
+- https://cards-dev.twitter.com/validator
+
+Some social sites (Discord, Twitter) cache previews aggressively. If a
+share still shows the old preview, change the URL fragment (e.g.
+`?v=2`) to bust the cache.
+
 ## Re-export after training
 
 mjlab writes a fresh `<timestamp>.onnx` next to each saved `model_*.pt`.

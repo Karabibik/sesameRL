@@ -28,6 +28,7 @@ from mjlab.sensor import ContactMatch, ContactSensorCfg
 from mjlab.tasks.velocity import mdp
 from mjlab.tasks.velocity.mdp import UniformVelocityCommandCfg
 from mjlab.tasks.velocity.velocity_env_cfg import make_velocity_env_cfg
+from mjlab.terrains import HfRandomUniformTerrainCfg, TerrainGeneratorCfg
 
 import config as C
 from sesame_robot import (
@@ -158,6 +159,38 @@ class command_range_curriculum:
 
 
 # ---------------------------------------------------------------------------
+# Rough-terrain generator
+# ---------------------------------------------------------------------------
+def _build_rough_terrain_generator() -> TerrainGeneratorCfg:
+    """Heightfield generator for blind rough-terrain training.
+
+    `num_rows` × `num_cols` patches; difficulty scales linearly along rows
+    (level 0 = flat) via mjlab's `curriculum=True` mode. mjlab's
+    `terrain_levels_vel` curriculum promotes/demotes each env between rows
+    based on tracking score.
+    """
+    t = C.TERRAIN
+    return TerrainGeneratorCfg(
+        size=t["size"],
+        border_width=t["border_size"],
+        num_rows=t["num_rows"],
+        num_cols=t["num_cols"],
+        curriculum=True,
+        sub_terrains={
+            "uniform_noise": HfRandomUniformTerrainCfg(
+                proportion=1.0,
+                size=t["size"],
+                noise_range=t["height_range"],
+                noise_step=t["height_range"][1] / 4 if t["height_range"][1] > 0 else 0.005,
+                horizontal_scale=t["step_range"][0],
+                vertical_scale=0.005,
+                border_width=0.25,
+            ),
+        },
+    )
+
+
+# ---------------------------------------------------------------------------
 # Env config
 # ---------------------------------------------------------------------------
 def sesame_flat_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
@@ -166,8 +199,16 @@ def sesame_flat_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
 
     # --- Scene / terrain -----------------------------------------------------
     assert cfg.scene.terrain is not None
-    cfg.scene.terrain.terrain_type = "plane"
-    cfg.scene.terrain.terrain_generator = None
+    if C.TERRAIN["rough_enabled"] and not play:
+        cfg.scene.terrain.terrain_type = "generator"
+        cfg.scene.terrain.terrain_generator = _build_rough_terrain_generator()
+        cfg.scene.terrain.max_init_terrain_level = 0
+    else:
+        # Flat. Plane mode also disables the rough-terrain curriculum below
+        # since `terrain_levels_vel` requires `terrain_levels` state on the
+        # terrain entity, which only generator-mode populates.
+        cfg.scene.terrain.terrain_type = "plane"
+        cfg.scene.terrain.terrain_generator = None
     cfg.scene.entities = {"robot": get_robot_cfg()}
     cfg.scene.num_envs = 1 if play else C.NUM_ENVS
 
@@ -311,6 +352,15 @@ def sesame_flat_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
                 "stages": list(C.COMMAND_CURRICULUM),
                 "command_name": "twist",
             },
+        )
+    if C.TERRAIN["rough_enabled"] and not play:
+        # Per-env terrain-level promotion: envs that successfully track their
+        # commanded velocity over an episode are bumped to a harder difficulty
+        # band; envs that fall short get bumped down. Caps at num_rows-1.
+        from mjlab.tasks.velocity.mdp.curriculums import terrain_levels_vel
+        cfg.curriculum["terrain_levels"] = CurriculumTermCfg(
+            func=terrain_levels_vel,
+            params={"command_name": "twist"},
         )
 
     # --- Viewer / sim --------------------------------------------------------

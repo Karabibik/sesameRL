@@ -57,10 +57,28 @@ ACTION_SCALE = 0.6 #0.25 * EFFORT_LIMIT / STIFFNESS
 # ---------------------------------------------------------------------------
 # Scene / simulation
 # ---------------------------------------------------------------------------
-NUM_ENVS = 4096 # ?[OPT] Check your VRAM, 8192 envs almost fills 8GB 
+NUM_ENVS = 4096 # ?[OPT] Check your VRAM, 8192 envs almost fills 8GB
 EPISODE_LENGTH_S = 20
 FALL_ANGLE_DEG = 60.0          # episode termination tilt threshold
 TERMINATE_ON_FALL = True
+
+
+# ---------------------------------------------------------------------------
+# Terrain. `rough_enabled=False` keeps the existing flat-plane scene unchanged.
+# Flip to True for blind rough-terrain training (proprioception only, no
+# height-scan sensors). mjlab's `terrain_levels_vel` curriculum promotes each
+# env from level 0 (flat) to level num_rows-1 based on tracking score.
+# Recommended: train flat first, then `python train.py --resume` with this on.
+# ---------------------------------------------------------------------------
+TERRAIN = {
+    "rough_enabled":  False,
+    "height_range":   (0.0, 0.015),  # uniform vertical variation, m. Conservative.
+    "step_range":     (0.05, 0.10),  # heightfield cell size, m.
+    "size":           (8.0, 8.0),    # patch size, m.
+    "border_size":    5.0,           # flat margin around each patch, m.
+    "num_rows":       5,             # difficulty bands; level 0 = flat.
+    "num_cols":       5,             # variants per level.
+}
 
 
 # ---------------------------------------------------------------------------
@@ -104,7 +122,7 @@ REWARDS = {
     "posture":                {"enabled": True, "weight":  0.3},
 
     # sum(max(tau*qdot, 0)) over all 8 joints; discourages thrashing.
-    "electrical_power":       {"enabled": True, "weight": -2e-5},
+    "electrical_power":       {"enabled": True, "weight": -2e-4},
 }
 
 
@@ -136,6 +154,8 @@ COMMAND_CURRICULUM = [
     {"step":  1000*24, "x_com": (-0.5, 0.5), "y_com": (-0.3, 0.3), "z_com": ( 0.0, 0.0)},
     # Stage 3: full symmetric 3-axis.
     {"step":  1500*24, "x_com": (-0.5, 0.5), "y_com": (-0.3, 0.3), "z_com": (-1.0, 1.0)},
+    {"step":  2000*24, "x_com": (-0.75, 0.75), "y_com": (-0.5, 0.5), "z_com": (-1.5, 1.5)},
+
 ]
 REL_STANDING_ENVS = 0.05
 
@@ -145,12 +165,12 @@ REL_STANDING_ENVS = 0.05
 # ---------------------------------------------------------------------------
 TASK_ID = "Sesame-Velocity-Flat"
 EXPERIMENT_NAME = "sesame_velocity"
-MAX_ITERATIONS = 10_000
+MAX_ITERATIONS = 20_000
 SEED = 1
 
 PPO = {
     "num_steps_per_env": 24,
-    "save_interval": 100,
+    "save_interval": 200,
     "logger": "tensorboard",
 
     "algorithm": {
