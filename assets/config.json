@@ -1,0 +1,65 @@
+{
+  "version": "0.5.7",
+  "projects": [
+    {
+      "name": "sesameRL",
+      "id": null,
+      "scenes": [
+        {
+          "name": "Sesame-Velocity-Flat",
+          "path": "sesame_velocity_flat/scene.mjz",
+          "camera": {
+            "lookat": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "distance": 0.8,
+            "elevation": -15.0,
+            "azimuth": 90.0,
+            "originType": "ASSET_BODY",
+            "enableReflections": true,
+            "enableShadows": true,
+            "height": 240,
+            "width": 320,
+            "entityName": "robot",
+            "bodyName": "base_link"
+          },
+          "events": [
+            {
+              "name": "ResetRootStateUniform",
+              "params": {
+                "pose_range": {
+                  "x": [
+                    -0.5,
+                    0.5
+                  ],
+                  "y": [
+                    -0.5,
+                    0.5
+                  ],
+                  "z": [
+                    0.01,
+                    0.05
+                  ],
+                  "yaw": [
+                    -3.14,
+                    3.14
+                  ]
+                },
+                "velocity_range": {}
+              }
+            }
+          ],
+          "policies": [
+            {
+              "name": "velocity",
+              "config": "sesame_velocity_flat/velocity.json",
+              "default": true
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
