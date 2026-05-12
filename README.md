@@ -58,6 +58,58 @@ Link / joint naming inherited from the Sesame project:
 
 ---
 
+## Network architecture
+
+Both actor and critic share the same MLP shape: two hidden layers of 256 and 128 units with ELU activations.
+
+```
+Input (36)  →  256  →  128  →  output
+```
+
+The input vector is 36 values in this order:
+
+| Group | Dims | Source |
+|---|---|---|
+| `base_lin_vel` | 3 | IMU (integrated accel, see note) |
+| `base_ang_vel` | 3 | IMU gyroscope |
+| `projected_gravity` | 3 | IMU orientation |
+| `joint_pos` | 8 | joint encoders (delta from default pose) |
+| `joint_vel` | 8 | joint encoders (velocity) |
+| `actions` | 8 | previous output — stored in software |
+| `command` (vx, vy, wz) | 3 | user / higher-level controller |
+
+Output is 8 joint position targets (one per joint).  
+The critic (output size 1) is **discarded after training** — only the actor is needed on the robot.
+
+---
+
+## Sim-to-real / hardware notes (ESP32S3 + MG90S)
+
+### What the deployed policy needs
+
+| Observation | What provides it | Notes |
+|---|---|---|
+| `projected_gravity` | MPU6050 DMP quaternion | Rotate [0, 0, −g] into body frame and normalise |
+| `base_ang_vel` | MPU6050 DMP gyro | Directly available |
+| `base_lin_vel` | MPU6050 accelerometer + integration | **Drifts**; zeroing it or clamping the integral is a reasonable first approximation |
+| `joint_pos` | MG90S (open-loop) | No feedback wire — use the last *commanded* position as the estimate |
+| `joint_vel` | Derived | Finite-difference of commanded position; noisy but avoids extra hardware |
+| `actions` | Software buffer | Store last output on the MCU — no sensor needed |
+| `command` | Firmware / RC input | Set by your controller — no sensor needed |
+
+### What is only needed during training
+
+- **Critic network** — entirely dropped; never runs on the robot.
+- **Foot contact / foot-slip signal** — used only for the `foot_slip` penalty reward. The deployed actor has no foot contact inputs and does not need contact sensors.
+- **Ground-truth base linear velocity** — sim provides this for free. On hardware it is estimated (see above).
+- **Terrain height samples** — not part of the observation vector; not needed even for rough-terrain policies.
+
+### MG90S servo timing
+
+The default firmware pulses each of the 8 servos sequentially with a 40 ms step, giving a full-cycle latency of ~320 ms (≈ 3 Hz). The sim control loop runs considerably faster. Before deploying a trained policy, this gap will need to be addressed — either by reducing per-servo delay, broadcasting commands in parallel over a serial bus, or adding latency-compensation to the observations.
+
+---
+
 ## Roadmap
 
 - [ ] URDF checks
