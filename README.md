@@ -12,19 +12,21 @@ Every observation, reward, event, curriculum stage, and PPO hyperparameter lives
 - Create and activate a virtual environment
 - Install [mjlab](https://mujocolab.github.io/mjlab/)
 - Install [PyTorch](https://pytorch.org/) (with gpu)
+- (Optional) Install [mjswan](https://github.com/ttktjmt/mjswan) for web demo
 - From the base folder, with the virtual environment active:
 
 ```bash
-python validate.py                                          # sinusoidal joint drive, no policy
-python train.py                                             # full PPO run
-python play.py                                              # auto-loads latest checkpoint
-tensorboard --logdir logs                                   # monitor training
+python validate.py          # sinusoidal joint drive, no policy
+python train.py             # full PPO run
+python play.py              # auto-loads latest checkpoint
+tensorboard --logdir logs   # monitor training
 ```
 
 ---
 
 ## Web demo
 Check the [interactive policy demo](https://karabibik.github.io/sesameRL/)!
+<video src="./logs/2026-05-11_14-42-24/demo.webm" autoplay loop muted playsinline width="100%"></video>
 
 ---
 
