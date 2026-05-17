@@ -26,7 +26,8 @@ tensorboard --logdir logs   # monitor training
 
 ## Web demo
 Check the [interactive policy demo](https://karabibik.github.io/sesameRL/)!
-<video src="./logs/2026-05-11_14-42-24/demo.webm" autoplay loop muted playsinline width="100%"></video>
+
+<img width="100%" src="./logs/2026-05-11_14-42-24/demo.gif" />
 
 ---
 
